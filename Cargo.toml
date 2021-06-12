@@ -1,0 +1,8 @@
+[package]
+name = "wav_ast"
+version = "0.1.0"
+authors = ["Kazuki Kurota"]
+edition = "2018"
+
+[dependencies]
+mpl = { git = "https://github.com/kurotakazuki/mpl" }
