@@ -5,7 +5,6 @@ version = 3
 [[package]]
 name = "mpl"
 version = "0.1.0"
-source = "git+https://github.com/kurotakazuki/mpl#23e4d8d3a2971a2af10026f94866dfb905573f29"
 
 [[package]]
 name = "wav_ast"

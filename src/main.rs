@@ -6493,25 +6493,14 @@ fn main() {
     rules.insert_rule(u32_rule);
     rules.insert_rule(u128_rule);
 
-    let input: &[u8] = &[
-        0x52, 0x49, 0x46, 0x46, 0x04, 0x00, 0x00, 0x00, 0x57, 0x41, 0x56, 0x45,
-    ][..];
+    let input = include_bytes!("../base_drum.wav");
     // all of the span
     let all_of_the_span = StartAndLenSpan::<u32, u32>::from_start_len(0, input.len() as u32);
 
-    let result: Result<AST<WavOutput, WavVariable, StartAndLenSpan<u32, u32>>, ()> =
-        input.minimal_parse(&rules, &WavVariable::Riff, all_of_the_span);
+    let result: Result<
+        AST<WavOutput, WavVariable, StartAndLenSpan<u32, u32>>,
+        AST<WavOutput, WavVariable, StartAndLenSpan<u32, u32>>,
+    > = input.minimal_parse(&rules, &WavVariable::Riff, all_of_the_span);
 
-    assert!(result.is_ok());
-
-    let input: &[u8] = &[
-        0x52, 0x43, 0x46, 0x46, 0x04, 0x00, 0x00, 0x00, 0x57, 0x41, 0x56, 0x45,
-    ][..];
-    // all of the span
-    let all_of_the_span = StartAndLenSpan::<u32, u32>::from_start_len(0, input.len() as u32);
-
-    let result: Result<AST<WavOutput, WavVariable, StartAndLenSpan<u32, u32>>, ()> =
-        input.minimal_parse(&rules, &WavVariable::Riff, all_of_the_span);
-
-    assert!(result.is_err());
+    println!("{:#?}", result);
 }

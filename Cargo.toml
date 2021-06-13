@@ -5,4 +5,4 @@ authors = ["Kazuki Kurota"]
 edition = "2018"
 
 [dependencies]
-mpl = { git = "https://github.com/kurotakazuki/mpl" }
+mpl = { path = "../mpl" }
