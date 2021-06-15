@@ -1,10 +1,11 @@
-use std::{
-    fs::File,
-    io,
-    io::{Read, Write},
-};
+// use std::{
+//     fs::File,
+//     io,
+//     io::{Read, Write},
+// };
 
-fn main() -> io::Result<()> {
+fn main() {
+    // fn main() -> io::Result<()> {
     // // Files
     // let mut other_size_in_enum = File::create("other_size_in_enum.rs")?;
     // for i in 1..=1024 {
@@ -57,5 +58,5 @@ fn main() -> io::Result<()> {
     // writeln!(&mut other_size_rules, "            RightRuleKind::Failure,")?;
     // writeln!(&mut other_size_rules, "    ));")?;
 
-    Ok(())
+    // Ok(())
 }

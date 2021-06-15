@@ -1,6 +1,6 @@
 use crate::chunk::{DataChunk, FactChunk, FmtChunk, OtherChunk, RiffChunk};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Wav<'a> {
     riff: RiffChunk,
     fmt: FmtChunk,

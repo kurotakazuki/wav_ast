@@ -7,10 +7,10 @@ pub struct RiffChunk {
 }
 
 impl RiffChunk {
-    fn new(size: u32) -> Self {
+    pub fn new(size: u32) -> Self {
         Self {
             chunk_header: ChunkHeader::into_riff_chunk(size),
-            form_type: FourCC::Riff,
+            form_type: FourCC::Wave,
         }
     }
 }

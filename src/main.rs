@@ -2,7 +2,7 @@ use crate::output::WavOutput;
 use crate::variable::WavVariable;
 use mpl::parse::Parse;
 use mpl::rules::{RightRule, RightRuleKind, Rule, Rules};
-use mpl::span::{Span, StartAndLenSpan};
+use mpl::span::StartAndLenSpan;
 use mpl::symbols::U8SliceTerminal;
 use mpl::tree::AST;
 
@@ -6493,14 +6493,14 @@ fn main() {
     rules.insert_rule(u32_rule);
     rules.insert_rule(u128_rule);
 
-    let input = include_bytes!("../base_drum.wav");
+    let input = include_bytes!("../test.wav");
     // all of the span
-    let all_of_the_span = StartAndLenSpan::<u32, u32>::from_start_len(0, input.len() as u32);
+    let all_of_the_span = StartAndLenSpan::<u32, u32>::from_start_len(0, 44);
 
     let result: Result<
         AST<WavOutput, WavVariable, StartAndLenSpan<u32, u32>>,
         AST<WavOutput, WavVariable, StartAndLenSpan<u32, u32>>,
-    > = input.minimal_parse(&rules, &WavVariable::Riff, all_of_the_span);
+    > = input.minimal_parse(&rules, &WavVariable::Wav, all_of_the_span);
 
     println!("{:#?}", result);
 }
