@@ -67,6 +67,30 @@ pub struct FmtChunk {
 }
 
 impl FmtChunk {
+    pub fn new(
+        size: u32,
+        format_tag: FormatTag,
+        channels: u16,
+        samples_per_sec: u32,
+        avg_bytes_per_sec: u32,
+        block_align: u16,
+        bits_per_sample: u16,
+        cb_size: Option<u16>,
+        wave_format_extensible: Option<WaveFormatExtensible>,
+    ) -> Self {
+        Self {
+            chunk_header: ChunkHeader::into_fmt_chunk(size),
+            format_tag,
+            channels,
+            samples_per_sec,
+            avg_bytes_per_sec,
+            block_align,
+            bits_per_sample,
+            cb_size,
+            wave_format_extensible,
+        }
+    }
+
     pub fn avg_bytes_per_sec(channels: u16, samples_per_sec: u32, bits_per_sample: u16) -> u32 {
         samples_per_sec * (channels * bits_per_sample) as u32 / 8
     }

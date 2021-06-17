@@ -1,5 +1,7 @@
 use mpl::symbols::Variable;
 
+// TODO
+#[allow(dead_code)]
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub enum WavVariable {
     Wav,
