@@ -364,13 +364,16 @@ fn main() {
 
     let input = include_bytes!("../test.wav");
     // all of the span
-    // let all_of_the_span = StartAndLenSpan::<u32, u32>::from_start_len(0, input.len() as u32);
-    let all_of_the_span = StartAndLenSpan::<u32, u32>::from_start_len(12, 36);
+    let all_of_the_span = StartAndLenSpan::<u32, u32>::from_start_len(0, input.len() as u32);
+
+    dbg!(input.len());
+    // let all_of_the_span = StartAndLenSpan::<u32, u32>::from_start_len(0, 12);
+    // let all_of_the_span = StartAndLenSpan::<u32, u32>::from_start_len(12, 24);
 
     let result: Result<
         AST<WavOutput, WavVariable, StartAndLenSpan<u32, u32>>,
         AST<WavOutput, WavVariable, StartAndLenSpan<u32, u32>>,
-    > = input.minimal_parse(&rules, &WavVariable::Fmt, all_of_the_span);
+    > = input.minimal_parse(&rules, &WavVariable::Wav, &all_of_the_span);
 
     println!("{:#?}", result);
 }

@@ -11,5 +11,5 @@ pub enum Sample {
 #[derive(Clone, Debug)]
 pub struct DataChunk {
     pub chunk_header: ChunkHeader,
-    pub data: Vec<Sample>,
+    pub data: Vec<Vec<Sample>>,
 }

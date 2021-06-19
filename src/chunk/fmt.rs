@@ -45,6 +45,24 @@ pub struct WaveFormatExtensible {
     pub sub_format: u128,
 }
 
+impl WaveFormatExtensible {
+    pub fn new(
+        valid_bits_per_sample: u16,
+        samples_per_block: u16,
+        reserved: u16,
+        channel_mask: u32,
+        sub_format: u128,
+    ) -> Self {
+        Self {
+            valid_bits_per_sample,
+            samples_per_block,
+            reserved,
+            channel_mask,
+            sub_format
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct FmtChunk {
     pub chunk_header: ChunkHeader,
