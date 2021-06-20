@@ -8,6 +8,7 @@ use mpl::tree::AST;
 
 mod chunk;
 mod output;
+mod sample;
 mod variable;
 mod wav;
 
@@ -344,13 +345,27 @@ fn main() {
         WavVariable::OtherSize1,
         RightRuleKind::T(U8SliceTerminal::LEU32(1)),
         RightRuleKind::Any(1),
-        RightRuleKind::V(WavVariable::OtherSize2),
+        RightRuleKind::V(WavVariable::OtherSize24),
     ));
 
     rules.insert_rule(set_rule(
-        WavVariable::OtherSize2,
-        RightRuleKind::T(U8SliceTerminal::LEU32(2)),
-        RightRuleKind::Any(2),
+        WavVariable::OtherSize24,
+        RightRuleKind::T(U8SliceTerminal::LEU32(24)),
+        RightRuleKind::Any(24),
+        RightRuleKind::V(WavVariable::OtherSize28),
+    ));
+
+    rules.insert_rule(set_rule(
+        WavVariable::OtherSize28,
+        RightRuleKind::T(U8SliceTerminal::LEU32(28)),
+        RightRuleKind::Any(28),
+        RightRuleKind::V(WavVariable::OtherSize602),
+    ));
+
+    rules.insert_rule(set_rule(
+        WavVariable::OtherSize602,
+        RightRuleKind::T(U8SliceTerminal::LEU32(602)),
+        RightRuleKind::Any(602),
         RightRuleKind::Failure,
     ));
 
@@ -362,11 +377,10 @@ fn main() {
     rules.insert_rule(u32_rule);
     rules.insert_rule(u128_rule);
 
-    let input = include_bytes!("../test.wav");
+    let input = include_bytes!("../base_drum.wav");
     // all of the span
     let all_of_the_span = StartAndLenSpan::<u32, u32>::from_start_len(0, input.len() as u32);
 
-    dbg!(input.len());
     // let all_of_the_span = StartAndLenSpan::<u32, u32>::from_start_len(0, 12);
     // let all_of_the_span = StartAndLenSpan::<u32, u32>::from_start_len(12, 24);
 

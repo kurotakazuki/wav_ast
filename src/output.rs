@@ -1,4 +1,8 @@
-use crate::chunk::{DataChunk, FactChunk, FmtChunk, FormatTag, OtherChunk, RiffChunk, WaveFormatExtensible};
+use crate::chunk::{
+    ChunkHeader, DataChunk, FactChunk, FmtChunk, FormatTag, OtherChunk, RiffChunk,
+    WaveFormatExtensible,
+};
+use crate::sample::Sample;
 use crate::variable::WavVariable;
 use crate::wav::Wav;
 use mpl::choice::Choice;
@@ -11,6 +15,8 @@ use std::convert::TryInto;
 #[derive(Clone, Debug)]
 pub enum WavOutput<'a> {
     Wav(Wav<'a>),
+
+    // Chunks(Vec<WavOutput<'a>>),
     Riff(RiffChunk),
     Fmt(FmtChunk),
     Fact(FactChunk),
@@ -22,7 +28,21 @@ pub enum WavOutput<'a> {
     U128(u128),
 }
 
-impl WavOutput<'_> {
+impl<'a> WavOutput<'a> {
+    fn to_wav(self) -> Wav<'a> {
+        match self {
+            Self::Wav(wav) => wav,
+            _ => panic!(),
+        }
+    }
+
+    fn to_riff(self) -> RiffChunk {
+        match self {
+            Self::Riff(riff) => riff,
+            _ => panic!(),
+        }
+    }
+
     fn to_fmt(self) -> FmtChunk {
         match self {
             Self::Fmt(fmt) => fmt,
@@ -56,6 +76,145 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
         cst: CST<Self, WavVariable, StartAndLenSpan<u32, u32>>,
     ) -> AST<Self, WavVariable, StartAndLenSpan<u32, u32>> {
         match cst.node.value {
+            WavVariable::Wav => {
+                let span = cst.span;
+                let wav_v = cst.node.equal.into_first().unwrap();
+                let riff = wav_v.lhs.into_original().unwrap().to_riff();
+                let mut wav = wav_v.rhs.into_original().unwrap().to_wav();
+
+                wav.riff = riff;
+
+                AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::Wav(wav)), span)
+            }
+
+            WavVariable::ChunksAndData => {
+                let span = cst.span;
+                let chunks_and_data_v = cst.node.equal.into_first().unwrap();
+                let mut fmt = None;
+                let mut fact = None;
+                let mut others = Vec::new();
+
+                // Warning: This will panic if there is no chunk like fmt chunk.
+                let mut chunks_v = chunks_and_data_v.lhs.into_first().unwrap();
+
+                loop {
+                    match chunks_v.lhs.into_original().unwrap() {
+                        WavOutput::Fmt(c) => fmt = Some(c),
+                        WavOutput::Fact(c) => fact = Some(c),
+                        WavOutput::Other(c) => others.push(c),
+                        _ => unreachable!(),
+                    }
+
+                    if let Some(first) = chunks_v.rhs.into_first() {
+                        chunks_v = first;
+                    } else {
+                        // When Epsilon
+                        break;
+                    }
+                }
+
+                // Data Chunk
+                let data_v = chunks_and_data_v.rhs.into_first().unwrap();
+
+                let data_size_v = data_v.rhs.into_first().unwrap();
+                let data_size: u32 = data_size_v.lhs.into_original().unwrap().to_u32();
+
+                let data_span = data_size_v.rhs.span;
+
+                if &data_span.len != &data_size {
+                    panic!("data size and data span is not equal");
+                }
+
+                if let Some(fmt) = fmt {
+                    let sample_frames = fmt.sample_frames(data_size) as usize;
+                    let channels = fmt.channels as usize;
+                    let mut data_vec: Vec<Vec<Sample>> =
+                        vec![Vec::with_capacity(channels); sample_frames];
+
+                    let data_span_lo = data_span.start as usize;
+                    for sample_index in 0..sample_frames {
+                        for channel_index in 0..channels {
+                            let relative_pos = sample_index * fmt.block_align() as usize
+                                + channel_index * (fmt.bytes_per_sample() as usize);
+                            match fmt.bits_per_sample {
+                                8 => {
+                                    let sample = u8::from_le_bytes(
+                                        input[data_span_lo + relative_pos..][..1]
+                                            .try_into()
+                                            .unwrap(),
+                                    );
+                                    data_vec[sample_index].push(sample.into());
+                                }
+                                16 => {
+                                    let sample = u16::from_le_bytes(
+                                        input[data_span_lo + relative_pos..][..2]
+                                            .try_into()
+                                            .unwrap(),
+                                    );
+                                    data_vec[sample_index].push(sample.into());
+                                }
+                                32 => match fmt.format_tag {
+                                    FormatTag::IEEEFloatingPoint => {
+                                        let sample = f32::from_le_bytes(
+                                            input[data_span_lo + relative_pos..][..4]
+                                                .try_into()
+                                                .unwrap(),
+                                        );
+                                        data_vec[sample_index].push(sample.into());
+                                    }
+                                    _ => {
+                                        unimplemented!()
+                                    }
+                                },
+                                64 => match fmt.format_tag {
+                                    FormatTag::IEEEFloatingPoint => {
+                                        let sample = f64::from_le_bytes(
+                                            input[data_span_lo + relative_pos..][..8]
+                                                .try_into()
+                                                .unwrap(),
+                                        );
+                                        data_vec[sample_index].push(sample.into());
+                                    }
+                                    _ => {
+                                        unimplemented!()
+                                    }
+                                },
+                                _ => {
+                                    unimplemented!()
+                                }
+                            }
+                        }
+                    }
+
+                    let data = DataChunk::new(data_size, data_vec);
+
+                    // Add some unknown values
+                    let riff = RiffChunk::new(0);
+
+                    let wav = Wav::new(riff, fmt, fact, others, data);
+
+                    AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::Wav(wav)), span)
+                } else {
+                    panic!("No Fmt Chunk");
+                }
+            }
+
+            WavVariable::Chunk => {
+                match cst.node.equal {
+                    // Fmt Chunk
+                    Choice::First(first) => first.lhs,
+                    // Chunk2
+                    Choice::Second(second) => {
+                        match *second.0.into_internal_node().unwrap().equal {
+                            // Fact Chunk
+                            Choice::First(first) => first.lhs,
+                            // Other Chunk
+                            Choice::Second(second) => second.0.into_first().unwrap().lhs,
+                        }
+                    }
+                }
+            }
+
             WavVariable::Riff => {
                 let span = cst.span;
                 let size: u32 = match cst
@@ -77,12 +236,6 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                 let riff = RiffChunk::new(size);
                 AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::Riff(riff)), span)
             }
-            // WavVariable::Wav => {
-
-            //     let ast = cst.node.equal;
-
-            //     AST::from_cst_and_output(cst, Some(WavOutput::U32(n)))
-            // }
 
             WavVariable::Fact => {
                 let span = cst.span;
@@ -103,48 +256,75 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
             WavVariable::Fmt => {
                 let span = cst.span;
 
-                match *cst.node.equal.into_first().unwrap().rhs.into_internal_node().unwrap().equal {
+                match *cst
+                    .node
+                    .equal
+                    .into_first()
+                    .unwrap()
+                    .rhs
+                    .into_internal_node()
+                    .unwrap()
+                    .equal
+                {
                     // Normal Fmt
                     Choice::First(first) => {
                         let size: u32 = 16;
 
                         let format_tag_v = first.rhs.into_first().unwrap();
-                        let format_tag: FormatTag = format_tag_v.lhs.into_original().unwrap().to_u16().into();
+                        let format_tag: FormatTag =
+                            format_tag_v.lhs.into_original().unwrap().to_u16().into();
 
                         let mut fmt = format_tag_v.rhs.into_original().unwrap().to_fmt();
 
                         fmt.chunk_header.size = size;
                         fmt.format_tag = format_tag;
-                        
-                        AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::Fmt(fmt)), span)
-                    },
+
+                        AST::from_leaf_node(
+                            TerminalSymbol::from_original(WavOutput::Fmt(fmt)),
+                            span,
+                        )
+                    }
                     // Fmt Extensible
                     Choice::Second(second) => {
                         let size: u32 = 40;
                         let format_tag: FormatTag = FormatTag::WaveFormatExtensible;
                         let cb_size: Option<u16> = Some(22);
-                        
-                        let format_tag_wave_format_extensible_v = second.0.into_first().unwrap();
-                        
-                        let wave_format_extensible_v = format_tag_wave_format_extensible_v.rhs.into_first().unwrap();
 
-                        let mut fmt = wave_format_extensible_v.lhs.into_original().unwrap().to_fmt();
+                        let format_tag_wave_format_extensible_v = second.0.into_first().unwrap();
+
+                        let wave_format_extensible_v = format_tag_wave_format_extensible_v
+                            .rhs
+                            .into_first()
+                            .unwrap();
+
+                        let mut fmt = wave_format_extensible_v
+                            .lhs
+                            .into_original()
+                            .unwrap()
+                            .to_fmt();
 
                         let cb_size_v = wave_format_extensible_v.rhs.into_first().unwrap();
 
                         let valid_bits_per_sample_v = cb_size_v.rhs.into_first().unwrap();
-                        let valid_bits_per_sample: u16 = valid_bits_per_sample_v.lhs.into_original().unwrap().to_u16();
-                        
+                        let valid_bits_per_sample: u16 = valid_bits_per_sample_v
+                            .lhs
+                            .into_original()
+                            .unwrap()
+                            .to_u16();
+
                         let samples_per_block_v = valid_bits_per_sample_v.rhs.into_first().unwrap();
-                        let samples_per_block: u16 = samples_per_block_v.lhs.into_original().unwrap().to_u16();
+                        let samples_per_block: u16 =
+                            samples_per_block_v.lhs.into_original().unwrap().to_u16();
 
                         let reserved_v = samples_per_block_v.rhs.into_first().unwrap();
                         let reserved: u16 = reserved_v.lhs.into_original().unwrap().to_u16();
 
                         let channel_mask_v = reserved_v.rhs.into_first().unwrap();
-                        let channel_mask: u32 = channel_mask_v.lhs.into_original().unwrap().to_u32();
+                        let channel_mask: u32 =
+                            channel_mask_v.lhs.into_original().unwrap().to_u32();
 
-                        let sub_format: u128 = channel_mask_v.rhs.into_original().unwrap().to_u128();
+                        let sub_format: u128 =
+                            channel_mask_v.rhs.into_original().unwrap().to_u128();
 
                         fmt.chunk_header.size = size;
                         fmt.format_tag = format_tag;
@@ -155,13 +335,15 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                             samples_per_block,
                             reserved,
                             channel_mask,
-                            sub_format
+                            sub_format,
                         ));
 
-                        AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::Fmt(fmt)), span)
-                    },
+                        AST::from_leaf_node(
+                            TerminalSymbol::from_original(WavOutput::Fmt(fmt)),
+                            span,
+                        )
+                    }
                 }
-
             }
             WavVariable::Channels => {
                 let span = cst.span;
@@ -180,7 +362,14 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
 
                 let block_align: u16 = block_align_v.lhs.into_original().unwrap().to_u16();
 
-                let bits_per_sample: u16 = block_align_v.rhs.into_first().unwrap().lhs.into_original().unwrap().to_u16();
+                let bits_per_sample: u16 = block_align_v
+                    .rhs
+                    .into_first()
+                    .unwrap()
+                    .lhs
+                    .into_original()
+                    .unwrap()
+                    .to_u16();
 
                 // Add some unknown values
                 let size = 16;
@@ -200,6 +389,20 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                     wave_format_extensible,
                 );
                 AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::Fmt(fmt)), span)
+            }
+
+            WavVariable::Other => {
+                let span = cst.span;
+                let lo = span.start as usize;
+                let hi = span.hi(input) as usize;
+
+                let size = u32::from_le_bytes(input[lo + 4..lo + 8].try_into().unwrap());
+
+                let four_cc = input[lo..lo + 4].try_into().unwrap();
+
+                let other = OtherChunk::new(four_cc, size, &input[lo + 8..hi]);
+
+                AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::Other(other)), span)
             }
 
             WavVariable::U16 => {

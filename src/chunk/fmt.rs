@@ -58,7 +58,7 @@ impl WaveFormatExtensible {
             samples_per_block,
             reserved,
             channel_mask,
-            sub_format
+            sub_format,
         }
     }
 }
@@ -109,11 +109,15 @@ impl FmtChunk {
         }
     }
 
-    pub fn avg_bytes_per_sec(channels: u16, samples_per_sec: u32, bits_per_sample: u16) -> u32 {
-        samples_per_sec * (channels * bits_per_sample) as u32 / 8
+    pub fn bytes_per_sample(&self) -> u16 {
+        self.bits_per_sample / 8
     }
 
-    pub fn block_align(channels: u16, bits_per_sample: u16) -> u16 {
-        channels * bits_per_sample / 8
+    pub fn block_align(&self) -> u16 {
+        self.channels * self.bytes_per_sample()
+    }
+
+    pub fn sample_frames(&self, data_size: u32) -> u32 {
+        data_size / self.block_align() as u32
     }
 }
