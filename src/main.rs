@@ -389,5 +389,6 @@ fn main() {
         AST<WavOutput, WavVariable, StartAndLenSpan<u32, u32>>,
     > = input.minimal_parse(&rules, &WavVariable::Wav, &all_of_the_span);
 
-    println!("{:#?}", result);
+    let wav = result.unwrap().into_original().unwrap().to_wav();
+    println!("{}", wav);
 }

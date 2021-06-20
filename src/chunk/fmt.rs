@@ -113,11 +113,7 @@ impl FmtChunk {
         self.bits_per_sample / 8
     }
 
-    pub fn block_align(&self) -> u16 {
-        self.channels * self.bytes_per_sample()
-    }
-
     pub fn sample_frames(&self, data_size: u32) -> u32 {
-        data_size / self.block_align() as u32
+        data_size / self.block_align as u32
     }
 }

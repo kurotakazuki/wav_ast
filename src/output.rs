@@ -1,6 +1,5 @@
 use crate::chunk::{
-    ChunkHeader, DataChunk, FactChunk, FmtChunk, FormatTag, OtherChunk, RiffChunk,
-    WaveFormatExtensible,
+    DataChunk, FactChunk, FmtChunk, FormatTag, OtherChunk, RiffChunk, WaveFormatExtensible,
 };
 use crate::sample::Sample;
 use crate::variable::WavVariable;
@@ -16,53 +15,51 @@ use std::convert::TryInto;
 pub enum WavOutput<'a> {
     Wav(Wav<'a>),
 
-    // Chunks(Vec<WavOutput<'a>>),
     Riff(RiffChunk),
     Fmt(FmtChunk),
     Fact(FactChunk),
     Other(OtherChunk<'a>),
-    Data(DataChunk),
-
+    // Data(DataChunk),
     U16(u16),
     U32(u32),
     U128(u128),
 }
 
 impl<'a> WavOutput<'a> {
-    fn to_wav(self) -> Wav<'a> {
+    pub fn to_wav(self) -> Wav<'a> {
         match self {
             Self::Wav(wav) => wav,
             _ => panic!(),
         }
     }
 
-    fn to_riff(self) -> RiffChunk {
+    pub fn to_riff(self) -> RiffChunk {
         match self {
             Self::Riff(riff) => riff,
             _ => panic!(),
         }
     }
 
-    fn to_fmt(self) -> FmtChunk {
+    pub fn to_fmt(self) -> FmtChunk {
         match self {
             Self::Fmt(fmt) => fmt,
             _ => panic!(),
         }
     }
 
-    fn to_u16(self) -> u16 {
+    pub fn to_u16(self) -> u16 {
         match self {
             Self::U16(n) => n,
             _ => panic!(),
         }
     }
-    fn to_u32(self) -> u32 {
+    pub fn to_u32(self) -> u32 {
         match self {
             Self::U32(n) => n,
             _ => panic!(),
         }
     }
-    fn to_u128(self) -> u128 {
+    pub fn to_u128(self) -> u128 {
         match self {
             Self::U128(n) => n,
             _ => panic!(),
@@ -134,7 +131,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                     let data_span_lo = data_span.start as usize;
                     for sample_index in 0..sample_frames {
                         for channel_index in 0..channels {
-                            let relative_pos = sample_index * fmt.block_align() as usize
+                            let relative_pos = sample_index * fmt.block_align as usize
                                 + channel_index * (fmt.bytes_per_sample() as usize);
                             match fmt.bits_per_sample {
                                 8 => {
