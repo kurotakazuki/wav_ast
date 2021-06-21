@@ -1,10 +1,11 @@
 use crate::output::WavOutput;
 use crate::variable::WavVariable;
 use mpl::parse::Parse;
-use mpl::rules::{RightRule, RightRuleKind, Rule, Rules};
+use mpl::rules::{RightRule, RightRuleKind};
 use mpl::span::StartAndLenSpan;
 use mpl::symbols::U8SliceTerminal;
 use mpl::tree::AST;
+use std::collections::HashMap;
 
 mod chunk;
 mod output;
@@ -69,313 +70,384 @@ mod wav;
 /// U128 = ???????? () / f
 /// ```
 fn main() {
-    let set_rule = |variable, first_lhs, first_rhs, second| -> Rule<U8SliceTerminal, WavVariable> {
-        Rule::new(
-            variable,
-            RightRule::from_right_rule_kind((first_lhs, first_rhs), second),
-        )
-    };
+    let mut rules = HashMap::new();
 
-    let wav_rule = set_rule(
+    rules.insert(
         WavVariable::Wav,
-        RightRuleKind::V(WavVariable::Riff),
-        RightRuleKind::V(WavVariable::ChunksAndData),
-        RightRuleKind::Failure,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::V(WavVariable::Riff),
+                RightRuleKind::V(WavVariable::ChunksAndData),
+            ),
+            RightRuleKind::Failure,
+        ),
     );
-    let chunks_and_data_rule = set_rule(
+    rules.insert(
         WavVariable::ChunksAndData,
-        RightRuleKind::V(WavVariable::Chunks),
-        RightRuleKind::V(WavVariable::Data),
-        RightRuleKind::Failure,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::V(WavVariable::Chunks),
+                RightRuleKind::V(WavVariable::Data),
+            ),
+            RightRuleKind::Failure,
+        ),
     );
-    let chunks_rule = set_rule(
+    rules.insert(
         WavVariable::Chunks,
-        RightRuleKind::V(WavVariable::Chunk),
-        RightRuleKind::V(WavVariable::Chunks),
-        RightRuleKind::Epsilon,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::V(WavVariable::Chunk),
+                RightRuleKind::V(WavVariable::Chunks),
+            ),
+            RightRuleKind::Epsilon,
+        ),
     );
 
-    let chunk_rule = set_rule(
+    rules.insert(
         WavVariable::Chunk,
-        RightRuleKind::V(WavVariable::Fmt),
-        RightRuleKind::Epsilon,
-        RightRuleKind::V(WavVariable::Chunk2),
+        RightRule::from_right_rule_kind(
+            (RightRuleKind::V(WavVariable::Fmt), RightRuleKind::Epsilon),
+            RightRuleKind::V(WavVariable::Chunk2),
+        ),
     );
-    let chunk2_rule = set_rule(
+    rules.insert(
         WavVariable::Chunk2,
-        RightRuleKind::V(WavVariable::Fact),
-        RightRuleKind::Epsilon,
-        RightRuleKind::V(WavVariable::Chunk3),
+        RightRule::from_right_rule_kind(
+            (RightRuleKind::V(WavVariable::Fact), RightRuleKind::Epsilon),
+            RightRuleKind::V(WavVariable::Chunk3),
+        ),
     );
-    let chunk3_rule = set_rule(
+    rules.insert(
         WavVariable::Chunk3,
-        RightRuleKind::V(WavVariable::Other),
-        RightRuleKind::Epsilon,
-        RightRuleKind::Failure,
+        RightRule::from_right_rule_kind(
+            (RightRuleKind::V(WavVariable::Other), RightRuleKind::Epsilon),
+            RightRuleKind::Failure,
+        ),
     );
-
     // Riff Chunk
-    let riff_rule = set_rule(
+    rules.insert(
         WavVariable::Riff,
-        RightRuleKind::T(U8SliceTerminal::Str("RIFF")),
-        RightRuleKind::V(WavVariable::FileSize),
-        RightRuleKind::Failure,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::T(U8SliceTerminal::Str("RIFF")),
+                RightRuleKind::V(WavVariable::FileSize),
+            ),
+            RightRuleKind::Failure,
+        ),
     );
-    let file_size_rule = set_rule(
+    rules.insert(
         WavVariable::FileSize,
-        RightRuleKind::V(WavVariable::U32),
-        RightRuleKind::V(WavVariable::Wave),
-        RightRuleKind::Failure,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::V(WavVariable::U32),
+                RightRuleKind::V(WavVariable::Wave),
+            ),
+            RightRuleKind::Failure,
+        ),
     );
-    let wave_rule = set_rule(
+    rules.insert(
         WavVariable::Wave,
-        RightRuleKind::T(U8SliceTerminal::Str("WAVE")),
-        RightRuleKind::Epsilon,
-        RightRuleKind::Failure,
-    );
-
-    // Fmt Chunk
-    let fmt_rule = set_rule(
-        WavVariable::Fmt,
-        RightRuleKind::T(U8SliceTerminal::Str("fmt ")),
-        RightRuleKind::V(WavVariable::FmtSize),
-        RightRuleKind::Failure,
-    );
-    let fmt_size_rule = set_rule(
-        WavVariable::FmtSize,
-        RightRuleKind::T(U8SliceTerminal::LEU32(16)),
-        RightRuleKind::V(WavVariable::FormatTag),
-        RightRuleKind::V(WavVariable::FmtExt),
-    );
-    let format_tag_rule = set_rule(
-        WavVariable::FormatTag,
-        RightRuleKind::V(WavVariable::U16),
-        RightRuleKind::V(WavVariable::Channels),
-        RightRuleKind::Failure,
-    );
-    let channels_rule = set_rule(
-        WavVariable::Channels,
-        RightRuleKind::V(WavVariable::U16),
-        RightRuleKind::V(WavVariable::SamplesPerSec),
-        RightRuleKind::Failure,
-    );
-    let samples_per_sec_rule = set_rule(
-        WavVariable::SamplesPerSec,
-        RightRuleKind::V(WavVariable::U32),
-        RightRuleKind::V(WavVariable::AvgBytesPerSec),
-        RightRuleKind::Failure,
-    );
-    let avg_bytes_per_sec_rule = set_rule(
-        WavVariable::AvgBytesPerSec,
-        RightRuleKind::V(WavVariable::U32),
-        RightRuleKind::V(WavVariable::BlockAlign),
-        RightRuleKind::Failure,
-    );
-    let block_align_rule = set_rule(
-        WavVariable::BlockAlign,
-        RightRuleKind::V(WavVariable::U16),
-        RightRuleKind::V(WavVariable::BitsPerSample),
-        RightRuleKind::Failure,
-    );
-    let bits_per_sample_rule = set_rule(
-        WavVariable::BitsPerSample,
-        RightRuleKind::V(WavVariable::U16),
-        RightRuleKind::Epsilon,
-        RightRuleKind::Failure,
-    );
-
-    let fmt_ext_rule = set_rule(
-        WavVariable::FmtExt,
-        RightRuleKind::T(U8SliceTerminal::LEU32(40)),
-        RightRuleKind::V(WavVariable::FormatTagWaveFormatExtensible),
-        RightRuleKind::Failure,
-    );
-    let format_tag_wave_format_extensible_rule = set_rule(
-        WavVariable::FormatTagWaveFormatExtensible,
-        RightRuleKind::T(U8SliceTerminal::LEU16(0xFFFE)),
-        RightRuleKind::V(WavVariable::WaveFormatExtensible),
-        RightRuleKind::Failure,
-    );
-    let wave_format_extensible_rule = set_rule(
-        WavVariable::WaveFormatExtensible,
-        RightRuleKind::V(WavVariable::Channels),
-        RightRuleKind::V(WavVariable::CbSize),
-        RightRuleKind::Failure,
-    );
-    let cb_size_rule = set_rule(
-        WavVariable::CbSize,
-        RightRuleKind::T(U8SliceTerminal::LEU16(22)),
-        RightRuleKind::V(WavVariable::ValidBitsPerSample),
-        RightRuleKind::Failure,
-    );
-    let valid_bits_per_sample_rule = set_rule(
-        WavVariable::ValidBitsPerSample,
-        RightRuleKind::V(WavVariable::U16),
-        RightRuleKind::V(WavVariable::SamplesPerBlock),
-        RightRuleKind::Failure,
-    );
-    let samples_per_block_rule = set_rule(
-        WavVariable::SamplesPerBlock,
-        RightRuleKind::V(WavVariable::U16),
-        RightRuleKind::V(WavVariable::Reserved),
-        RightRuleKind::Failure,
-    );
-    let reserved_rule = set_rule(
-        WavVariable::Reserved,
-        RightRuleKind::V(WavVariable::U16),
-        RightRuleKind::V(WavVariable::ChannelMask),
-        RightRuleKind::Failure,
-    );
-    let channel_mask_rule = set_rule(
-        WavVariable::ChannelMask,
-        RightRuleKind::V(WavVariable::U32),
-        RightRuleKind::V(WavVariable::SubFormat),
-        RightRuleKind::Failure,
-    );
-    let sub_format_rule = set_rule(
-        WavVariable::SubFormat,
-        RightRuleKind::V(WavVariable::U128),
-        RightRuleKind::Epsilon,
-        RightRuleKind::Failure,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::T(U8SliceTerminal::Str("WAVE")),
+                RightRuleKind::Epsilon,
+            ),
+            RightRuleKind::Failure,
+        ),
     );
 
     // Fact Chunk
-    let fact_rule = set_rule(
+    rules.insert(
         WavVariable::Fact,
-        RightRuleKind::T(U8SliceTerminal::Str("fact")),
-        RightRuleKind::V(WavVariable::FactSize),
-        RightRuleKind::Failure,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::T(U8SliceTerminal::Str("fact")),
+                RightRuleKind::V(WavVariable::FactSize),
+            ),
+            RightRuleKind::Failure,
+        ),
     );
-    let fact_size_rule = set_rule(
+    rules.insert(
         WavVariable::FactSize,
-        RightRuleKind::T(U8SliceTerminal::LEU32(4)),
-        RightRuleKind::V(WavVariable::SampleLength),
-        RightRuleKind::Failure,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::T(U8SliceTerminal::LEU32(4)),
+                RightRuleKind::V(WavVariable::SampleLength),
+            ),
+            RightRuleKind::Failure,
+        ),
     );
-    let sample_length_rule = set_rule(
+    rules.insert(
         WavVariable::SampleLength,
-        RightRuleKind::V(WavVariable::U32),
-        RightRuleKind::Epsilon,
-        RightRuleKind::Failure,
+        RightRule::from_right_rule_kind(
+            (RightRuleKind::V(WavVariable::U32), RightRuleKind::Epsilon),
+            RightRuleKind::Failure,
+        ),
     );
-
-    // Other Chunk
-    let other_rule = set_rule(
-        WavVariable::Other,
-        RightRuleKind::Any(4),
-        RightRuleKind::V(WavVariable::OtherSize1),
-        RightRuleKind::Failure,
-    );
-
-    // Data Chunk
-    let data_rule = set_rule(
-        WavVariable::Data,
-        RightRuleKind::T(U8SliceTerminal::Str("data")),
-        RightRuleKind::V(WavVariable::DataSize),
-        RightRuleKind::Failure,
-    );
-    let data_size_rule = set_rule(
-        WavVariable::DataSize,
-        RightRuleKind::V(WavVariable::U32),
-        RightRuleKind::All,
-        RightRuleKind::Failure,
-    );
-
-    let u16_rule = set_rule(
-        WavVariable::U16,
-        RightRuleKind::Any(2),
-        RightRuleKind::Epsilon,
-        RightRuleKind::Failure,
-    );
-    let u32_rule = set_rule(
-        WavVariable::U32,
-        RightRuleKind::Any(4),
-        RightRuleKind::Epsilon,
-        RightRuleKind::Failure,
-    );
-    let u128_rule = set_rule(
-        WavVariable::U128,
-        RightRuleKind::Any(8),
-        RightRuleKind::Epsilon,
-        RightRuleKind::Failure,
-    );
-
-    let mut rules = Rules::new();
-    rules.insert_rule(wav_rule);
-    rules.insert_rule(chunks_and_data_rule);
-    rules.insert_rule(chunks_rule);
-
-    rules.insert_rule(chunk_rule);
-    rules.insert_rule(chunk2_rule);
-    rules.insert_rule(chunk3_rule);
-    // Riff Chunk
-    rules.insert_rule(riff_rule);
-    rules.insert_rule(file_size_rule);
-    rules.insert_rule(wave_rule);
-
-    // Fact Chunk
-    rules.insert_rule(fact_rule);
-    rules.insert_rule(fact_size_rule);
-    rules.insert_rule(sample_length_rule);
 
     // Fmt Chunk
-    rules.insert_rule(fmt_rule);
-    rules.insert_rule(fmt_size_rule);
-    rules.insert_rule(format_tag_rule);
-    rules.insert_rule(channels_rule);
-    rules.insert_rule(samples_per_sec_rule);
-    rules.insert_rule(avg_bytes_per_sec_rule);
-    rules.insert_rule(block_align_rule);
-    rules.insert_rule(bits_per_sample_rule);
+    rules.insert(
+        WavVariable::Fmt,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::T(U8SliceTerminal::Str("fmt ")),
+                RightRuleKind::V(WavVariable::FmtSize),
+            ),
+            RightRuleKind::Failure,
+        ),
+    );
+    rules.insert(
+        WavVariable::FmtSize,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::T(U8SliceTerminal::LEU32(16)),
+                RightRuleKind::V(WavVariable::FormatTag),
+            ),
+            RightRuleKind::V(WavVariable::FmtExt),
+        ),
+    );
+    rules.insert(
+        WavVariable::FormatTag,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::V(WavVariable::U16),
+                RightRuleKind::V(WavVariable::Channels),
+            ),
+            RightRuleKind::Failure,
+        ),
+    );
+    rules.insert(
+        WavVariable::Channels,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::V(WavVariable::U16),
+                RightRuleKind::V(WavVariable::SamplesPerSec),
+            ),
+            RightRuleKind::Failure,
+        ),
+    );
+    rules.insert(
+        WavVariable::SamplesPerSec,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::V(WavVariable::U32),
+                RightRuleKind::V(WavVariable::AvgBytesPerSec),
+            ),
+            RightRuleKind::Failure,
+        ),
+    );
+    rules.insert(
+        WavVariable::AvgBytesPerSec,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::V(WavVariable::U32),
+                RightRuleKind::V(WavVariable::BlockAlign),
+            ),
+            RightRuleKind::Failure,
+        ),
+    );
+    rules.insert(
+        WavVariable::BlockAlign,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::V(WavVariable::U16),
+                RightRuleKind::V(WavVariable::BitsPerSample),
+            ),
+            RightRuleKind::Failure,
+        ),
+    );
+    rules.insert(
+        WavVariable::BitsPerSample,
+        RightRule::from_right_rule_kind(
+            (RightRuleKind::V(WavVariable::U16), RightRuleKind::Epsilon),
+            RightRuleKind::Failure,
+        ),
+    );
 
-    rules.insert_rule(fmt_ext_rule);
-    rules.insert_rule(format_tag_wave_format_extensible_rule);
-    rules.insert_rule(wave_format_extensible_rule);
-    rules.insert_rule(cb_size_rule);
-    rules.insert_rule(valid_bits_per_sample_rule);
-    rules.insert_rule(samples_per_block_rule);
-    rules.insert_rule(reserved_rule);
-    rules.insert_rule(channel_mask_rule);
-    rules.insert_rule(sub_format_rule);
+    rules.insert(
+        WavVariable::FmtExt,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::T(U8SliceTerminal::LEU32(40)),
+                RightRuleKind::V(WavVariable::FormatTagWaveFormatExtensible),
+            ),
+            RightRuleKind::Failure,
+        ),
+    );
+    rules.insert(
+        WavVariable::FormatTagWaveFormatExtensible,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::T(U8SliceTerminal::LEU16(0xFFFE)),
+                RightRuleKind::V(WavVariable::WaveFormatExtensible),
+            ),
+            RightRuleKind::Failure,
+        ),
+    );
+    rules.insert(
+        WavVariable::WaveFormatExtensible,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::V(WavVariable::Channels),
+                RightRuleKind::V(WavVariable::CbSize),
+            ),
+            RightRuleKind::Failure,
+        ),
+    );
+    rules.insert(
+        WavVariable::CbSize,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::T(U8SliceTerminal::LEU16(22)),
+                RightRuleKind::V(WavVariable::ValidBitsPerSample),
+            ),
+            RightRuleKind::Failure,
+        ),
+    );
+    rules.insert(
+        WavVariable::ValidBitsPerSample,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::V(WavVariable::U16),
+                RightRuleKind::V(WavVariable::SamplesPerBlock),
+            ),
+            RightRuleKind::Failure,
+        ),
+    );
+    rules.insert(
+        WavVariable::SamplesPerBlock,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::V(WavVariable::U16),
+                RightRuleKind::V(WavVariable::Reserved),
+            ),
+            RightRuleKind::Failure,
+        ),
+    );
+    rules.insert(
+        WavVariable::Reserved,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::V(WavVariable::U16),
+                RightRuleKind::V(WavVariable::ChannelMask),
+            ),
+            RightRuleKind::Failure,
+        ),
+    );
+    rules.insert(
+        WavVariable::ChannelMask,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::V(WavVariable::U32),
+                RightRuleKind::V(WavVariable::SubFormat),
+            ),
+            RightRuleKind::Failure,
+        ),
+    );
+    rules.insert(
+        WavVariable::SubFormat,
+        RightRule::from_right_rule_kind(
+            (RightRuleKind::V(WavVariable::U128), RightRuleKind::Epsilon),
+            RightRuleKind::Failure,
+        ),
+    );
 
     // Other Chunk
-    rules.insert_rule(other_rule);
+    rules.insert(
+        WavVariable::Other,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::Any(4),
+                RightRuleKind::V(WavVariable::OtherSize1),
+            ),
+            RightRuleKind::Failure,
+        ),
+    );
 
-    rules.insert_rule(set_rule(
+    rules.insert(
         WavVariable::OtherSize1,
-        RightRuleKind::T(U8SliceTerminal::LEU32(1)),
-        RightRuleKind::Any(1),
-        RightRuleKind::V(WavVariable::OtherSize24),
-    ));
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::T(U8SliceTerminal::LEU32(1)),
+                RightRuleKind::Any(1),
+            ),
+            RightRuleKind::V(WavVariable::OtherSize24),
+        ),
+    );
 
-    rules.insert_rule(set_rule(
+    rules.insert(
         WavVariable::OtherSize24,
-        RightRuleKind::T(U8SliceTerminal::LEU32(24)),
-        RightRuleKind::Any(24),
-        RightRuleKind::V(WavVariable::OtherSize28),
-    ));
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::T(U8SliceTerminal::LEU32(24)),
+                RightRuleKind::Any(24),
+            ),
+            RightRuleKind::V(WavVariable::OtherSize28),
+        ),
+    );
 
-    rules.insert_rule(set_rule(
+    rules.insert(
         WavVariable::OtherSize28,
-        RightRuleKind::T(U8SliceTerminal::LEU32(28)),
-        RightRuleKind::Any(28),
-        RightRuleKind::V(WavVariable::OtherSize602),
-    ));
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::T(U8SliceTerminal::LEU32(28)),
+                RightRuleKind::Any(28),
+            ),
+            RightRuleKind::V(WavVariable::OtherSize602),
+        ),
+    );
 
-    rules.insert_rule(set_rule(
+    rules.insert(
         WavVariable::OtherSize602,
-        RightRuleKind::T(U8SliceTerminal::LEU32(602)),
-        RightRuleKind::Any(602),
-        RightRuleKind::Failure,
-    ));
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::T(U8SliceTerminal::LEU32(602)),
+                RightRuleKind::Any(602),
+            ),
+            RightRuleKind::Failure,
+        ),
+    );
 
     // Data Chunk
-    rules.insert_rule(data_rule);
-    rules.insert_rule(data_size_rule);
+    rules.insert(
+        WavVariable::Data,
+        RightRule::from_right_rule_kind(
+            (
+                RightRuleKind::T(U8SliceTerminal::Str("data")),
+                RightRuleKind::V(WavVariable::DataSize),
+            ),
+            RightRuleKind::Failure,
+        ),
+    );
+    rules.insert(
+        WavVariable::DataSize,
+        RightRule::from_right_rule_kind(
+            (RightRuleKind::V(WavVariable::U32), RightRuleKind::All),
+            RightRuleKind::Failure,
+        ),
+    );
 
-    rules.insert_rule(u16_rule);
-    rules.insert_rule(u32_rule);
-    rules.insert_rule(u128_rule);
+    rules.insert(
+        WavVariable::U16,
+        RightRule::from_right_rule_kind(
+            (RightRuleKind::Any(2), RightRuleKind::Epsilon),
+            RightRuleKind::Failure,
+        ),
+    );
+    rules.insert(
+        WavVariable::U32,
+        RightRule::from_right_rule_kind(
+            (RightRuleKind::Any(4), RightRuleKind::Epsilon),
+            RightRuleKind::Failure,
+        ),
+    );
+    rules.insert(
+        WavVariable::U128,
+        RightRule::from_right_rule_kind(
+            (RightRuleKind::Any(8), RightRuleKind::Epsilon),
+            RightRuleKind::Failure,
+        ),
+    );
 
     let input = include_bytes!("../base_drum.wav");
     // all of the span

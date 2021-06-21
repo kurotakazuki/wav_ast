@@ -118,7 +118,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
 
                 let data_span = data_size_v.rhs.span;
 
-                if &data_span.len != &data_size {
+                if data_span.len != data_size {
                     panic!("data size and data span is not equal");
                 }
 
