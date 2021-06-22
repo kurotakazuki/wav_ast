@@ -33,21 +33,7 @@ impl<'a> WavRules {
             lhs: E::V(Fmt),
             rhs: E::T(TerminalSymbol::Metasymbol(Epsilon)),
         },
-        second: Second(E::V(Chunk2)),
-    };
-    const CHUNK2_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {
-        first: First {
-            lhs: E::V(Fact),
-            rhs: E::T(TerminalSymbol::Metasymbol(Epsilon)),
-        },
-        second: Second(E::V(Chunk3)),
-    };
-    const CHUNK3_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {
-        first: First {
-            lhs: E::V(Other),
-            rhs: E::T(TerminalSymbol::Metasymbol(Epsilon)),
-        },
-        second: Second(E::T(TerminalSymbol::Metasymbol(Failure))),
+        second: Second(E::V(Other)),
     };
 
     // Riff Chunk
@@ -62,22 +48,6 @@ impl<'a> WavRules {
         first: First {
             lhs: E::V(U32),
             rhs: E::T(TerminalSymbol::Original(Str("WAVE"))),
-        },
-        second: Second(E::T(TerminalSymbol::Metasymbol(Failure))),
-    };
-
-    // Fact Chunk
-    const FACT_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {
-        first: First {
-            lhs: E::T(TerminalSymbol::Original(Str("fact"))),
-            rhs: E::V(SampleLength),
-        },
-        second: Second(E::T(TerminalSymbol::Metasymbol(Failure))),
-    };
-    const SAMPLE_LENGTH_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {
-        first: First {
-            lhs: E::T(TerminalSymbol::Original(LEU32(4))),
-            rhs: E::V(U32),
         },
         second: Second(E::T(TerminalSymbol::Metasymbol(Failure))),
     };
@@ -222,6 +192,13 @@ impl<'a> WavRules {
             lhs: E::T(TerminalSymbol::Original(LEU32(1))),
             rhs: E::T(TerminalSymbol::Metasymbol(Any(1))),
         },
+        second: Second(E::V(OtherSize4)),
+    };
+    const OTHER_SIZE4_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {
+        first: First {
+            lhs: E::T(TerminalSymbol::Original(LEU32(4))),
+            rhs: E::T(TerminalSymbol::Metasymbol(Any(4))),
+        },
         second: Second(E::V(OtherSize24)),
     };
     const OTHER_SIZE24_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {
@@ -293,8 +270,6 @@ impl<'a> Rules<U8SliceTerminal<'a>, WavVariable> for WavRules {
             Chunks => &Self::CHUNKS_RIGHT_RULE,
 
             Chunk => &Self::CHUNK_RIGHT_RULE,
-            Chunk2 => &Self::CHUNK2_RIGHT_RULE,
-            Chunk3 => &Self::CHUNK3_RIGHT_RULE,
 
             // Riff Chunk
             Riff => &Self::RIFF_RIGHT_RULE,
@@ -320,13 +295,10 @@ impl<'a> Rules<U8SliceTerminal<'a>, WavVariable> for WavRules {
             ChannelMask => &Self::CHANNEL_MASK_RIGHT_RULE,
             SubFormat => &Self::SUB_FORMAT_RIGHT_RULE,
 
-            // Fact Chunk
-            Fact => &Self::FACT_RIGHT_RULE,
-            SampleLength => &Self::SAMPLE_LENGTH_RIGHT_RULE,
-
             // Other Chunk
             Other => &Self::OTHER_RIGHT_RULE,
             OtherSize1 => &Self::OTHER_SIZE1_RIGHT_RULE,
+            OtherSize4 => &Self::OTHER_SIZE4_RIGHT_RULE,
             OtherSize24 => &Self::OTHER_SIZE24_RIGHT_RULE,
             OtherSize28 => &Self::OTHER_SIZE28_RIGHT_RULE,
             OtherSize602 => &Self::OTHER_SIZE602_RIGHT_RULE,

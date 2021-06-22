@@ -17,9 +17,7 @@ mod wav;
 /// ChunksAndData = Chunks Data / f
 /// Chunks = Chunk Chunks / ()
 ///
-/// Chunk = Fmt () / Chunk2
-/// Chunk2 = Fact () / Chunk3
-/// Chunk3 = Other () / f
+/// Chunk = Fmt () / Other
 ///
 /// // Riff Chunk
 /// Riff = "RIFF" FileSize / f
@@ -45,10 +43,6 @@ mod wav;
 /// ChannelMask = U32 SubFormat / f
 /// SubFormat = U128 () / f
 ///
-/// // Fact Chunk
-/// Fact = "fact" SampleLength / f
-/// SampleLength = 4 U32 / f
-///
 /// // Other Chunk
 /// Other = ???? OtherSize1 / f
 /// OtherSize1 = 1 ? / OtherSize2
@@ -72,9 +66,6 @@ fn main() {
     let input = include_bytes!("../base_drum.wav");
     // all of the span
     let all_of_the_span = StartAndLenSpan::<u32, u32>::from_start_len(0, input.len() as u32);
-
-    // let all_of_the_span = StartAndLenSpan::<u32, u32>::from_start_len(0, 12);
-    // let all_of_the_span = StartAndLenSpan::<u32, u32>::from_start_len(12, 24);
 
     let result: Result<
         AST<WavOutput, WavVariable, StartAndLenSpan<u32, u32>>,

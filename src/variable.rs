@@ -10,7 +10,6 @@ pub enum WavVariable {
 
     Chunk,
     Chunk2,
-    Chunk3,
 
     // RIFF Chunk
     Riff,
@@ -35,10 +34,6 @@ pub enum WavVariable {
     Reserved,
     ChannelMask,
     SubFormat,
-
-    // Fact Chunk
-    Fact,
-    SampleLength,
 
     // Other Chunk
     Other,

@@ -1,11 +1,10 @@
-use crate::chunk::{DataChunk, FactChunk, FmtChunk, OtherChunk, RiffChunk};
+use crate::chunk::{DataChunk, FmtChunk, OtherChunk, RiffChunk};
 use std::fmt;
 
 #[derive(Clone, Debug)]
 pub struct Wav<'a> {
     pub riff: RiffChunk,
     pub fmt: FmtChunk,
-    pub fact: Option<FactChunk>,
     pub others: Vec<OtherChunk<'a>>,
     pub data: DataChunk,
 }
@@ -14,14 +13,12 @@ impl<'a> Wav<'a> {
     pub fn new(
         riff: RiffChunk,
         fmt: FmtChunk,
-        fact: Option<FactChunk>,
         others: Vec<OtherChunk<'a>>,
         data: DataChunk,
     ) -> Self {
         Self {
             riff,
             fmt,
-            fact,
             others,
             data,
         }
@@ -45,21 +42,15 @@ impl fmt::Display for Wav<'_> {
         writeln!(f, "Block Align: {}", self.fmt.block_align)?;
         writeln!(f, "Bits Per Sample: {}", self.fmt.bits_per_sample)?;
         writeln!(f, "----------------------------------------")?;
-        // writeln!(f, "Fact Chunk")?;
-        if let Some(fact) = self.fact {
-            writeln!(f, "Sample Length: {}", fact.sample_length)?;
-        } else {
-            writeln!(
-                f,
-                "Sample Frames: {}",
-                self.fmt.sample_frames(self.data.chunk_header.size)
-            )?;
-        }
-        writeln!(f, "----------------------------------------")?;
         for other in &self.others {
             writeln!(f, "Other Chunk: {}", other.chunk_header.id)?;
         }
         writeln!(f, "----------------------------------------")?;
-        writeln!(f, "Data Size: {}", self.data.chunk_header.size)
+        writeln!(f, "Data Size: {}", self.data.chunk_header.size)?;
+        writeln!(
+            f,
+            "Sample Frames: {}",
+            self.fmt.sample_frames(self.data.chunk_header.size)
+        )
     }
 }

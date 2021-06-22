@@ -1,6 +1,4 @@
-use crate::chunk::{
-    DataChunk, FactChunk, FmtChunk, FormatTag, OtherChunk, RiffChunk, WaveFormatExtensible,
-};
+use crate::chunk::{DataChunk, FmtChunk, FormatTag, OtherChunk, RiffChunk, WaveFormatExtensible};
 use crate::sample::Sample;
 use crate::variable::WavVariable;
 use crate::wav::Wav;
@@ -17,7 +15,6 @@ pub enum WavOutput<'a> {
 
     Riff(RiffChunk),
     Fmt(FmtChunk),
-    Fact(FactChunk),
     Other(OtherChunk<'a>),
     // Data(DataChunk),
     U16(u16),
@@ -88,7 +85,6 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                 let span = cst.span;
                 let chunks_and_data_v = cst.node.equal.into_first().unwrap();
                 let mut fmt = None;
-                let mut fact = None;
                 let mut others = Vec::new();
 
                 // Warning: This will panic if there is no chunk like fmt chunk.
@@ -97,7 +93,6 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                 loop {
                     match chunks_v.lhs.into_original().unwrap() {
                         WavOutput::Fmt(c) => fmt = Some(c),
-                        WavOutput::Fact(c) => fact = Some(c),
                         WavOutput::Other(c) => others.push(c),
                         _ => unreachable!(),
                     }
@@ -190,7 +185,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                     // Add some unknown values
                     let riff = RiffChunk::new(0);
 
-                    let wav = Wav::new(riff, fmt, fact, others, data);
+                    let wav = Wav::new(riff, fmt, others, data);
 
                     AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::Wav(wav)), span)
                 } else {
@@ -202,15 +197,8 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                 match cst.node.equal {
                     // Fmt Chunk
                     Choice::First(first) => first.lhs,
-                    // Chunk2
-                    Choice::Second(second) => {
-                        match *second.0.into_internal_node().unwrap().equal {
-                            // Fact Chunk
-                            Choice::First(first) => first.lhs,
-                            // Other Chunk
-                            Choice::Second(second) => second.0.into_first().unwrap().lhs,
-                        }
-                    }
+                    // Other Chunk
+                    Choice::Second(second) => second.0,
                 }
             }
 
@@ -234,21 +222,6 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
 
                 let riff = RiffChunk::new(size);
                 AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::Riff(riff)), span)
-            }
-
-            WavVariable::Fact => {
-                let span = cst.span;
-                let fact_size = 4;
-
-                let fact_v = cst.node.equal.into_first().unwrap();
-
-                let sample_length_v = fact_v.rhs.into_first().unwrap();
-
-                let sample_length: u32 = sample_length_v.rhs.into_original().unwrap().into_u32();
-
-                let fact = FactChunk::new(fact_size, sample_length);
-
-                AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::Fact(fact)), span)
             }
 
             WavVariable::Fmt => {

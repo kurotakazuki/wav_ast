@@ -1,11 +1,9 @@
 pub use self::data::DataChunk;
-pub use self::fact::FactChunk;
 pub use self::fmt::{FmtChunk, FormatTag, WaveFormatExtensible};
 pub use self::other::OtherChunk;
 pub use self::riff::RiffChunk;
 
 mod data;
-mod fact;
 mod fmt;
 mod other;
 mod riff;
@@ -15,7 +13,6 @@ pub enum FourCC {
     Riff,
     Wave,
     Fmt,
-    Fact,
     Data,
     Other([u8; 4]),
 }
@@ -26,7 +23,6 @@ impl From<[u8; 4]> for FourCC {
             b"RIFF" => FourCC::Riff,
             b"WAVE" => FourCC::Wave,
             b"fmt " => FourCC::Fmt,
-            b"fact" => FourCC::Fact,
             b"data" => FourCC::Data,
             _ => FourCC::Other(bytes),
         }
@@ -40,7 +36,6 @@ impl From<FourCC> for [u8; 4] {
             FourCC::Riff => [0x52, 0x49, 0x46, 0x46],
             FourCC::Wave => [0x57, 0x41, 0x56, 0x45],
             FourCC::Fmt => [0x66, 0x6D, 0x74, 0x20],
-            FourCC::Fact => [0x66, 0x61, 0x63, 0x74],
             FourCC::Data => [0x64, 0x61, 0x74, 0x61],
             FourCC::Other(bytes) => bytes,
         }
@@ -54,7 +49,6 @@ impl From<&FourCC> for [u8; 4] {
             FourCC::Riff => [0x52, 0x49, 0x46, 0x46],
             FourCC::Wave => [0x57, 0x41, 0x56, 0x45],
             FourCC::Fmt => [0x66, 0x6D, 0x74, 0x20],
-            FourCC::Fact => [0x66, 0x61, 0x63, 0x74],
             FourCC::Data => [0x64, 0x61, 0x74, 0x61],
             FourCC::Other(bytes) => *bytes,
         }
@@ -77,11 +71,6 @@ pub struct ChunkHeader {
 impl ChunkHeader {
     pub fn into_data_chunk(size: u32) -> ChunkHeader {
         let id = FourCC::Data;
-        Self { id, size }
-    }
-
-    pub fn into_fact_chunk(size: u32) -> ChunkHeader {
-        let id = FourCC::Fact;
         Self { id, size }
     }
 
@@ -112,14 +101,12 @@ mod tests {
         let riff: &[u8; 4] = b"RIFF".into();
         let wave: &[u8; 4] = b"WAVE".into();
         let fmt: &[u8; 4] = b"fmt ".into();
-        let fact: &[u8; 4] = b"fact".into();
         let data: &[u8; 4] = b"data".into();
         let other: &[u8; 4] = b"else".into();
 
         assert_eq!(FourCC::Riff, FourCC::from(*riff));
         assert_eq!(FourCC::Wave, FourCC::from(*wave));
         assert_eq!(FourCC::Fmt, FourCC::from(*fmt));
-        assert_eq!(FourCC::Fact, FourCC::from(*fact));
         assert_eq!(FourCC::Data, FourCC::from(*data));
         assert_eq!(
             FourCC::Other([0x65, 0x6C, 0x73, 0x65]),
@@ -132,21 +119,18 @@ mod tests {
         let self_riff: [u8; 4] = FourCC::Riff.into();
         let self_wave: [u8; 4] = FourCC::Wave.into();
         let self_fmt: [u8; 4] = FourCC::Fmt.into();
-        let self_fact: [u8; 4] = FourCC::Fact.into();
         let self_data: [u8; 4] = FourCC::Data.into();
         let self_other: [u8; 4] = FourCC::Other([0x65, 0x6C, 0x73, 0x65]).into();
 
         let riff: &[u8; 4] = b"RIFF".into();
         let wave: &[u8; 4] = b"WAVE".into();
         let fmt: &[u8; 4] = b"fmt ".into();
-        let fact: &[u8; 4] = b"fact".into();
         let data: &[u8; 4] = b"data".into();
         let other: &[u8; 4] = b"else".into();
 
         assert_eq!(self_riff, *riff);
         assert_eq!(self_wave, *wave);
         assert_eq!(self_fmt, *fmt);
-        assert_eq!(self_fact, *fact);
         assert_eq!(self_data, *data);
         assert_eq!(self_other, *other);
     }
