@@ -242,10 +242,9 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
 
                 let fact_v = cst.node.equal.into_first().unwrap();
 
-                let fact_size_v = fact_v.rhs.into_first().unwrap();
+                let sample_length_v = fact_v.rhs.into_first().unwrap();
 
-                let sample_length_v = fact_size_v.rhs.into_first().unwrap();
-                let sample_length: u32 = sample_length_v.lhs.into_original().unwrap().into_u32();
+                let sample_length: u32 = sample_length_v.rhs.into_original().unwrap().into_u32();
 
                 let fact = FactChunk::new(fact_size, sample_length);
 

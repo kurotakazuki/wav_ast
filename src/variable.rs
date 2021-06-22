@@ -15,7 +15,6 @@ pub enum WavVariable {
     // RIFF Chunk
     Riff,
     FileSize,
-    Wave,
 
     // Fmt Chunk
     Fmt,
@@ -39,7 +38,6 @@ pub enum WavVariable {
 
     // Fact Chunk
     Fact,
-    FactSize,
     SampleLength,
 
     // Other Chunk
