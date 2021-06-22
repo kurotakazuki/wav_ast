@@ -1,62 +1,52 @@
-// use std::{
-//     fs::File,
-//     io,
-//     io::{Read, Write},
-// };
+// use std::{fs::File, io, io::Write};
 
+// fn main() -> io::Result<()> {
 fn main() {
-    // fn main() -> io::Result<()> {
     // // Files
-    // let mut other_size_in_enum = File::create("other_size_in_enum.rs")?;
+    // // let mut other_size_in_enum = File::create("other_size_in_enum.rs")?;
+    // // for i in 1..=1024 {
+    // //     writeln!(&mut other_size_in_enum, "OtherSize{},", i)?;
+    // // }
+    // let mut other_size_right_rules_enum = File::create("other_size_right_rules_enum.rs")?;
     // for i in 1..=1024 {
-    //     writeln!(&mut other_size_in_enum, "OtherSize{},", i)?;
+    //     writeln!(&mut other_size_right_rules_enum, "            OtherSize{} => &Self::OTHER_SIZE{}_RIGHT_RULE,", i, i)?;
     // }
-    // let mut other_size_rules = File::create("other_size_rules.rs")?;
+
+    // let mut other_size_right_rules = File::create("other_size_right_rules.rs")?;
 
     // for i in 1..1024 {
-    //     writeln!(&mut other_size_rules, "    rules.insert_rule(set_rule(")?;
+    //     writeln!(&mut other_size_right_rules, "const OTHER_SIZE{}_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {{", i)?;
     //     writeln!(
-    //         &mut other_size_rules,
-    //         "            WavVariable::OtherSize{},",
+    //         &mut other_size_right_rules,
+    //         "    first: First {{ lhs: E::T(TerminalSymbol::Original(LEU32({}))), rhs: E::T(TerminalSymbol::Metasymbol(Any({}))) }},",
+    //         i,
     //         i
     //     )?;
     //     writeln!(
-    //         &mut other_size_rules,
-    //         "            RightRuleKind::T(U8SliceTerminal::LEU32({})),",
-    //         i
-    //     )?;
-    //     writeln!(
-    //         &mut other_size_rules,
-    //         "            RightRuleKind::Any({}),",
-    //         i
-    //     )?;
-    //     writeln!(
-    //         &mut other_size_rules,
-    //         "            RightRuleKind::V(WavVariable::OtherSize{}),",
+    //         &mut other_size_right_rules,
+    //         "    second: Second(E::V(OtherSize{})),",
     //         i + 1
     //     )?;
-    //     writeln!(&mut other_size_rules, "    ));")?;
+    //     writeln!(&mut other_size_right_rules, "}};")?;
     // }
     // // 1024
     // let i = 1024;
-    // writeln!(&mut other_size_rules, "    rules.insert_rule(set_rule(")?;
     // writeln!(
-    //     &mut other_size_rules,
-    //     "            WavVariable::OtherSize{},",
+    //     &mut other_size_right_rules,
+    //     "const OTHER_SIZE{}_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {{",
     //     i
     // )?;
     // writeln!(
-    //     &mut other_size_rules,
-    //     "            RightRuleKind::T(U8SliceTerminal::LEU32({})),",
+    //     &mut other_size_right_rules,
+    //     "    first: First {{ lhs: E::T(TerminalSymbol::Original(LEU32({}))), rhs: E::T(TerminalSymbol::Metasymbol(Any({}))) }},",
+    //     i,
     //     i
     // )?;
     // writeln!(
-    //     &mut other_size_rules,
-    //     "            RightRuleKind::Any({}),",
-    //     i
+    //     &mut other_size_right_rules,
+    //     "    second: Second(E::T(TerminalSymbol::Metasymbol(Failure))),"
     // )?;
-    // writeln!(&mut other_size_rules, "            RightRuleKind::Failure,")?;
-    // writeln!(&mut other_size_rules, "    ));")?;
+    // writeln!(&mut other_size_right_rules, "}};")?;
 
     // Ok(())
 }

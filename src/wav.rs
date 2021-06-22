@@ -32,7 +32,6 @@ impl<'a> Wav<'a> {
 impl fmt::Display for Wav<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "File Size: {}", self.file_size())?;
-
         writeln!(f, "----------------------------------------")?;
         // writeln!(f, "Fmt Chunk")?;
         writeln!(f, "Format Tag: {:?}", self.fmt.format_tag)?;
