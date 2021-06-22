@@ -25,13 +25,13 @@ impl<'a> WavRules {
             lhs: E::V(Chunk),
             rhs: E::V(Chunks),
         },
-        second: Second(E::T(TerminalSymbol::Metasymbol(Epsilon))),
+        second: Second(E::T(TerminalSymbol::Metasymbol(Empty))),
     };
 
     const CHUNK_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {
         first: First {
             lhs: E::V(Fmt),
-            rhs: E::T(TerminalSymbol::Metasymbol(Epsilon)),
+            rhs: E::T(TerminalSymbol::Metasymbol(Empty)),
         },
         second: Second(E::V(Other)),
     };
@@ -105,7 +105,7 @@ impl<'a> WavRules {
     const BITS_PER_SAMPLE_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {
         first: First {
             lhs: E::V(U16),
-            rhs: E::T(TerminalSymbol::Metasymbol(Epsilon)),
+            rhs: E::T(TerminalSymbol::Metasymbol(Empty)),
         },
         second: Second(E::T(TerminalSymbol::Metasymbol(Failure))),
     };
@@ -174,7 +174,7 @@ impl<'a> WavRules {
     const SUB_FORMAT_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {
         first: First {
             lhs: E::V(U128),
-            rhs: E::T(TerminalSymbol::Metasymbol(Epsilon)),
+            rhs: E::T(TerminalSymbol::Metasymbol(Empty)),
         },
         second: Second(E::T(TerminalSymbol::Metasymbol(Failure))),
     };
@@ -242,21 +242,21 @@ impl<'a> WavRules {
     const U16_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {
         first: First {
             lhs: E::T(TerminalSymbol::Metasymbol(Any(2))),
-            rhs: E::T(TerminalSymbol::Metasymbol(Epsilon)),
+            rhs: E::T(TerminalSymbol::Metasymbol(Empty)),
         },
         second: Second(E::T(TerminalSymbol::Metasymbol(Failure))),
     };
     const U32_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {
         first: First {
             lhs: E::T(TerminalSymbol::Metasymbol(Any(4))),
-            rhs: E::T(TerminalSymbol::Metasymbol(Epsilon)),
+            rhs: E::T(TerminalSymbol::Metasymbol(Empty)),
         },
         second: Second(E::T(TerminalSymbol::Metasymbol(Failure))),
     };
     const U128_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {
         first: First {
             lhs: E::T(TerminalSymbol::Metasymbol(Any(8))),
-            rhs: E::T(TerminalSymbol::Metasymbol(Epsilon)),
+            rhs: E::T(TerminalSymbol::Metasymbol(Empty)),
         },
         second: Second(E::T(TerminalSymbol::Metasymbol(Failure))),
     };
