@@ -26,40 +26,40 @@ pub enum WavOutput<'a> {
 }
 
 impl<'a> WavOutput<'a> {
-    pub fn to_wav(self) -> Wav<'a> {
+    pub fn into_wav(self) -> Wav<'a> {
         match self {
             Self::Wav(wav) => wav,
             _ => panic!(),
         }
     }
 
-    pub fn to_riff(self) -> RiffChunk {
+    pub fn into_riff(self) -> RiffChunk {
         match self {
             Self::Riff(riff) => riff,
             _ => panic!(),
         }
     }
 
-    pub fn to_fmt(self) -> FmtChunk {
+    pub fn into_fmt(self) -> FmtChunk {
         match self {
             Self::Fmt(fmt) => fmt,
             _ => panic!(),
         }
     }
 
-    pub fn to_u16(self) -> u16 {
+    pub fn into_u16(self) -> u16 {
         match self {
             Self::U16(n) => n,
             _ => panic!(),
         }
     }
-    pub fn to_u32(self) -> u32 {
+    pub fn into_u32(self) -> u32 {
         match self {
             Self::U32(n) => n,
             _ => panic!(),
         }
     }
-    pub fn to_u128(self) -> u128 {
+    pub fn into_u128(self) -> u128 {
         match self {
             Self::U128(n) => n,
             _ => panic!(),
@@ -76,8 +76,8 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
             WavVariable::Wav => {
                 let span = cst.span;
                 let wav_v = cst.node.equal.into_first().unwrap();
-                let riff = wav_v.lhs.into_original().unwrap().to_riff();
-                let mut wav = wav_v.rhs.into_original().unwrap().to_wav();
+                let riff = wav_v.lhs.into_original().unwrap().into_riff();
+                let mut wav = wav_v.rhs.into_original().unwrap().into_wav();
 
                 wav.riff = riff;
 
@@ -114,7 +114,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                 let data_v = chunks_and_data_v.rhs.into_first().unwrap();
 
                 let data_size_v = data_v.rhs.into_first().unwrap();
-                let data_size: u32 = data_size_v.lhs.into_original().unwrap().to_u32();
+                let data_size: u32 = data_size_v.lhs.into_original().unwrap().into_u32();
 
                 let data_span = data_size_v.rhs.span;
 
@@ -129,7 +129,9 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                         vec![Vec::with_capacity(channels); sample_frames];
 
                     let data_span_lo = data_span.start as usize;
-                    for sample_index in 0..sample_frames {
+                    for (sample_index, sample_frame_vec) in
+                        data_vec.iter_mut().enumerate().take(sample_frames)
+                    {
                         for channel_index in 0..channels {
                             let relative_pos = sample_index * fmt.block_align as usize
                                 + channel_index * (fmt.bytes_per_sample() as usize);
@@ -140,7 +142,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                                             .try_into()
                                             .unwrap(),
                                     );
-                                    data_vec[sample_index].push(sample.into());
+                                    sample_frame_vec.push(sample.into());
                                 }
                                 16 => {
                                     let sample = u16::from_le_bytes(
@@ -148,7 +150,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                                             .try_into()
                                             .unwrap(),
                                     );
-                                    data_vec[sample_index].push(sample.into());
+                                    sample_frame_vec.push(sample.into());
                                 }
                                 32 => match fmt.format_tag {
                                     FormatTag::IEEEFloatingPoint => {
@@ -157,7 +159,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                                                 .try_into()
                                                 .unwrap(),
                                         );
-                                        data_vec[sample_index].push(sample.into());
+                                        sample_frame_vec.push(sample.into());
                                     }
                                     _ => {
                                         unimplemented!()
@@ -170,7 +172,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                                                 .try_into()
                                                 .unwrap(),
                                         );
-                                        data_vec[sample_index].push(sample.into());
+                                        sample_frame_vec.push(sample.into());
                                     }
                                     _ => {
                                         unimplemented!()
@@ -243,7 +245,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                 let fact_size_v = fact_v.rhs.into_first().unwrap();
 
                 let sample_length_v = fact_size_v.rhs.into_first().unwrap();
-                let sample_length: u32 = sample_length_v.lhs.into_original().unwrap().to_u32();
+                let sample_length: u32 = sample_length_v.lhs.into_original().unwrap().into_u32();
 
                 let fact = FactChunk::new(fact_size, sample_length);
 
@@ -269,9 +271,9 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
 
                         let format_tag_v = first.rhs.into_first().unwrap();
                         let format_tag: FormatTag =
-                            format_tag_v.lhs.into_original().unwrap().to_u16().into();
+                            format_tag_v.lhs.into_original().unwrap().into_u16().into();
 
-                        let mut fmt = format_tag_v.rhs.into_original().unwrap().to_fmt();
+                        let mut fmt = format_tag_v.rhs.into_original().unwrap().into_fmt();
 
                         fmt.chunk_header.size = size;
                         fmt.format_tag = format_tag;
@@ -298,7 +300,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                             .lhs
                             .into_original()
                             .unwrap()
-                            .to_fmt();
+                            .into_fmt();
 
                         let cb_size_v = wave_format_extensible_v.rhs.into_first().unwrap();
 
@@ -307,21 +309,21 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                             .lhs
                             .into_original()
                             .unwrap()
-                            .to_u16();
+                            .into_u16();
 
                         let samples_per_block_v = valid_bits_per_sample_v.rhs.into_first().unwrap();
                         let samples_per_block: u16 =
-                            samples_per_block_v.lhs.into_original().unwrap().to_u16();
+                            samples_per_block_v.lhs.into_original().unwrap().into_u16();
 
                         let reserved_v = samples_per_block_v.rhs.into_first().unwrap();
-                        let reserved: u16 = reserved_v.lhs.into_original().unwrap().to_u16();
+                        let reserved: u16 = reserved_v.lhs.into_original().unwrap().into_u16();
 
                         let channel_mask_v = reserved_v.rhs.into_first().unwrap();
                         let channel_mask: u32 =
-                            channel_mask_v.lhs.into_original().unwrap().to_u32();
+                            channel_mask_v.lhs.into_original().unwrap().into_u32();
 
                         let sub_format: u128 =
-                            channel_mask_v.rhs.into_original().unwrap().to_u128();
+                            channel_mask_v.rhs.into_original().unwrap().into_u128();
 
                         fmt.chunk_header.size = size;
                         fmt.format_tag = format_tag;
@@ -346,18 +348,19 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                 let span = cst.span;
 
                 let channels_v = cst.node.equal.into_first().unwrap();
-                let channels: u16 = channels_v.lhs.into_original().unwrap().to_u16();
+                let channels: u16 = channels_v.lhs.into_original().unwrap().into_u16();
 
                 let samples_per_sec_v = channels_v.rhs.into_first().unwrap();
-                let samples_per_sec: u32 = samples_per_sec_v.lhs.into_original().unwrap().to_u32();
+                let samples_per_sec: u32 =
+                    samples_per_sec_v.lhs.into_original().unwrap().into_u32();
 
                 let avg_bytes_per_sec_v = samples_per_sec_v.rhs.into_first().unwrap();
                 let avg_bytes_per_sec: u32 =
-                    avg_bytes_per_sec_v.lhs.into_original().unwrap().to_u32();
+                    avg_bytes_per_sec_v.lhs.into_original().unwrap().into_u32();
 
                 let block_align_v = avg_bytes_per_sec_v.rhs.into_first().unwrap();
 
-                let block_align: u16 = block_align_v.lhs.into_original().unwrap().to_u16();
+                let block_align: u16 = block_align_v.lhs.into_original().unwrap().into_u16();
 
                 let bits_per_sample: u16 = block_align_v
                     .rhs
@@ -366,7 +369,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                     .lhs
                     .into_original()
                     .unwrap()
-                    .to_u16();
+                    .into_u16();
 
                 // Add some unknown values
                 let size = 16;
