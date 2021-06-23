@@ -74,21 +74,12 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                 let span = cst.span;
                 let wav_v = cst.node.equal.into_first().unwrap();
                 let riff = wav_v.lhs.into_original().unwrap().into_riff();
-                let mut wav = wav_v.rhs.into_original().unwrap().into_wav();
 
-                wav.riff = riff;
-
-                AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::Wav(wav)), span)
-            }
-
-            WavVariable::Chunks => {
-                let span = cst.span;
-                let chunks_v = cst.node.equal.into_first().unwrap();
                 let mut fmt = None;
                 let mut others = Vec::new();
 
                 // Warning: This will panic if there is no chunk.
-                let mut chunks_v = chunks_v.lhs.into_first().unwrap();
+                let mut chunks_v = wav_v.rhs.into_first().unwrap();
 
                 loop {
                     match chunks_v.lhs.node {
@@ -175,9 +166,6 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                                 }
 
                                 let data = DataChunk::new(data_size, data_vec);
-
-                                // Add some unknown values
-                                let riff = RiffChunk::new(0);
 
                                 let wav = Wav::new(riff, fmt, others, data);
 
