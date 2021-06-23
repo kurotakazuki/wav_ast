@@ -13,11 +13,11 @@ mod variable;
 mod wav;
 
 /// ```
-/// Wav = Riff ChunksAndData / f
-/// ChunksAndData = Chunks Data / f
+/// Wav = Riff Chunks / f
 /// Chunks = Chunk Chunks / ()
 ///
-/// Chunk = Fmt () / Other
+/// Chunk = Fmt () / Chunk2
+/// Chunk2 = Data () / Other
 ///
 /// // Riff Chunk
 /// Riff = "RIFF" FileSize / f

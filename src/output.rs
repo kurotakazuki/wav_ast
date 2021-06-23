@@ -6,7 +6,7 @@ use mpl::choice::Choice;
 use mpl::output::Output;
 use mpl::span::{Span, StartAndLenSpan};
 use mpl::symbols::TerminalSymbol;
-use mpl::tree::{AST, CST};
+use mpl::tree::{ASTKind, AST, CST};
 use std::convert::TryInto;
 
 #[derive(Clone, Debug)]
@@ -81,115 +81,122 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                 AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::Wav(wav)), span)
             }
 
-            WavVariable::ChunksAndData => {
+            WavVariable::Chunks => {
                 let span = cst.span;
-                let chunks_and_data_v = cst.node.equal.into_first().unwrap();
+                let chunks_v = cst.node.equal.into_first().unwrap();
                 let mut fmt = None;
                 let mut others = Vec::new();
 
-                // Warning: This will panic if there is no chunk like fmt chunk.
-                let mut chunks_v = chunks_and_data_v.lhs.into_first().unwrap();
+                // Warning: This will panic if there is no chunk.
+                let mut chunks_v = chunks_v.lhs.into_first().unwrap();
 
                 loop {
-                    match chunks_v.lhs.into_original().unwrap() {
-                        WavOutput::Fmt(c) => fmt = Some(c),
-                        WavOutput::Other(c) => others.push(c),
-                        _ => unreachable!(),
+                    match chunks_v.lhs.node {
+                        ASTKind::LeafNode(n) => match n.into_original().unwrap() {
+                            WavOutput::Fmt(c) => fmt = Some(c),
+                            WavOutput::Other(c) => others.push(c),
+                            _ => unreachable!(),
+                        },
+                        ASTKind::InternalNode(n) => {
+                            // Data Chunk
+                            let data_v = n.into_first().unwrap();
+
+                            let data_size_v = data_v.rhs.into_first().unwrap();
+                            let data_size: u32 =
+                                data_size_v.lhs.into_original().unwrap().into_u32();
+
+                            let data_span = data_size_v.rhs.span;
+
+                            if data_span.len != data_size {
+                                panic!("data size and data span is not equal");
+                            }
+
+                            if let Some(fmt) = fmt {
+                                let sample_frames = fmt.sample_frames(data_size) as usize;
+                                let channels = fmt.channels as usize;
+                                let mut data_vec: Vec<Vec<Sample>> =
+                                    vec![Vec::with_capacity(channels); sample_frames];
+
+                                let data_span_lo = data_span.start as usize;
+                                for (sample_index, sample_frame_vec) in
+                                    data_vec.iter_mut().enumerate().take(sample_frames)
+                                {
+                                    for channel_index in 0..channels {
+                                        let relative_pos = sample_index * fmt.block_align as usize
+                                            + channel_index * (fmt.bytes_per_sample() as usize);
+                                        match fmt.bits_per_sample {
+                                            8 => {
+                                                let sample = u8::from_le_bytes(
+                                                    input[data_span_lo + relative_pos..][..1]
+                                                        .try_into()
+                                                        .unwrap(),
+                                                );
+                                                sample_frame_vec.push(sample.into());
+                                            }
+                                            16 => {
+                                                let sample = u16::from_le_bytes(
+                                                    input[data_span_lo + relative_pos..][..2]
+                                                        .try_into()
+                                                        .unwrap(),
+                                                );
+                                                sample_frame_vec.push(sample.into());
+                                            }
+                                            32 => match fmt.format_tag {
+                                                FormatTag::IEEEFloatingPoint => {
+                                                    let sample = f32::from_le_bytes(
+                                                        input[data_span_lo + relative_pos..][..4]
+                                                            .try_into()
+                                                            .unwrap(),
+                                                    );
+                                                    sample_frame_vec.push(sample.into());
+                                                }
+                                                _ => {
+                                                    unimplemented!()
+                                                }
+                                            },
+                                            64 => match fmt.format_tag {
+                                                FormatTag::IEEEFloatingPoint => {
+                                                    let sample = f64::from_le_bytes(
+                                                        input[data_span_lo + relative_pos..][..8]
+                                                            .try_into()
+                                                            .unwrap(),
+                                                    );
+                                                    sample_frame_vec.push(sample.into());
+                                                }
+                                                _ => {
+                                                    unimplemented!()
+                                                }
+                                            },
+                                            _ => {
+                                                unimplemented!()
+                                            }
+                                        }
+                                    }
+                                }
+
+                                let data = DataChunk::new(data_size, data_vec);
+
+                                // Add some unknown values
+                                let riff = RiffChunk::new(0);
+
+                                let wav = Wav::new(riff, fmt, others, data);
+
+                                return AST::from_leaf_node(
+                                    TerminalSymbol::from_original(WavOutput::Wav(wav)),
+                                    span,
+                                );
+                            } else {
+                                panic!("No Fmt Chunk");
+                            }
+                        }
                     }
 
                     if let Some(first) = chunks_v.rhs.into_first() {
                         chunks_v = first;
                     } else {
                         // When Epsilon
-                        break;
+                        panic!("No Data Chunk")
                     }
-                }
-
-                // Data Chunk
-                let data_v = chunks_and_data_v.rhs.into_first().unwrap();
-
-                let data_size_v = data_v.rhs.into_first().unwrap();
-                let data_size: u32 = data_size_v.lhs.into_original().unwrap().into_u32();
-
-                let data_span = data_size_v.rhs.span;
-
-                if data_span.len != data_size {
-                    panic!("data size and data span is not equal");
-                }
-
-                if let Some(fmt) = fmt {
-                    let sample_frames = fmt.sample_frames(data_size) as usize;
-                    let channels = fmt.channels as usize;
-                    let mut data_vec: Vec<Vec<Sample>> =
-                        vec![Vec::with_capacity(channels); sample_frames];
-
-                    let data_span_lo = data_span.start as usize;
-                    for (sample_index, sample_frame_vec) in
-                        data_vec.iter_mut().enumerate().take(sample_frames)
-                    {
-                        for channel_index in 0..channels {
-                            let relative_pos = sample_index * fmt.block_align as usize
-                                + channel_index * (fmt.bytes_per_sample() as usize);
-                            match fmt.bits_per_sample {
-                                8 => {
-                                    let sample = u8::from_le_bytes(
-                                        input[data_span_lo + relative_pos..][..1]
-                                            .try_into()
-                                            .unwrap(),
-                                    );
-                                    sample_frame_vec.push(sample.into());
-                                }
-                                16 => {
-                                    let sample = u16::from_le_bytes(
-                                        input[data_span_lo + relative_pos..][..2]
-                                            .try_into()
-                                            .unwrap(),
-                                    );
-                                    sample_frame_vec.push(sample.into());
-                                }
-                                32 => match fmt.format_tag {
-                                    FormatTag::IEEEFloatingPoint => {
-                                        let sample = f32::from_le_bytes(
-                                            input[data_span_lo + relative_pos..][..4]
-                                                .try_into()
-                                                .unwrap(),
-                                        );
-                                        sample_frame_vec.push(sample.into());
-                                    }
-                                    _ => {
-                                        unimplemented!()
-                                    }
-                                },
-                                64 => match fmt.format_tag {
-                                    FormatTag::IEEEFloatingPoint => {
-                                        let sample = f64::from_le_bytes(
-                                            input[data_span_lo + relative_pos..][..8]
-                                                .try_into()
-                                                .unwrap(),
-                                        );
-                                        sample_frame_vec.push(sample.into());
-                                    }
-                                    _ => {
-                                        unimplemented!()
-                                    }
-                                },
-                                _ => {
-                                    unimplemented!()
-                                }
-                            }
-                        }
-                    }
-
-                    let data = DataChunk::new(data_size, data_vec);
-
-                    // Add some unknown values
-                    let riff = RiffChunk::new(0);
-
-                    let wav = Wav::new(riff, fmt, others, data);
-
-                    AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::Wav(wav)), span)
-                } else {
-                    panic!("No Fmt Chunk");
                 }
             }
 
@@ -197,8 +204,13 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                 match cst.node.equal {
                     // Fmt Chunk
                     Choice::First(first) => first.lhs,
-                    // Other Chunk
-                    Choice::Second(second) => second.0,
+                    // Data or Other Chunk
+                    Choice::Second(second) => match *second.0.into_internal_node().unwrap().equal {
+                        // Data Chunk
+                        Choice::First(first) => first.lhs,
+                        // Other Chunk
+                        Choice::Second(second) => second.0,
+                    },
                 }
             }
 

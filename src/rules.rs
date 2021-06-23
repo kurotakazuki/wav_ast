@@ -9,14 +9,7 @@ impl<'a> WavRules {
     const WAV_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {
         first: First {
             lhs: E::V(Riff),
-            rhs: E::V(ChunksAndData),
-        },
-        second: Second(E::T(TerminalSymbol::Metasymbol(Failure))),
-    };
-    const CHUNKS_AND_DATA_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {
-        first: First {
-            lhs: E::V(Chunks),
-            rhs: E::V(Data),
+            rhs: E::V(Chunks),
         },
         second: Second(E::T(TerminalSymbol::Metasymbol(Failure))),
     };
@@ -31,6 +24,13 @@ impl<'a> WavRules {
     const CHUNK_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {
         first: First {
             lhs: E::V(Fmt),
+            rhs: E::T(TerminalSymbol::Metasymbol(Empty)),
+        },
+        second: Second(E::V(Chunk2)),
+    };
+    const CHUNK2_RIGHT_RULE: RightRule<U8SliceTerminal<'a>, WavVariable> = RightRule {
+        first: First {
+            lhs: E::V(Data),
             rhs: E::T(TerminalSymbol::Metasymbol(Empty)),
         },
         second: Second(E::V(Other)),
@@ -7400,10 +7400,10 @@ impl<'a> Rules<U8SliceTerminal<'a>, WavVariable> for WavRules {
     fn get(&self, variable: &WavVariable) -> Option<&RightRule<U8SliceTerminal<'a>, WavVariable>> {
         Some(match variable {
             Wav => &Self::WAV_RIGHT_RULE,
-            ChunksAndData => &Self::CHUNKS_AND_DATA_RIGHT_RULE,
             Chunks => &Self::CHUNKS_RIGHT_RULE,
 
             Chunk => &Self::CHUNK_RIGHT_RULE,
+            Chunk2 => &Self::CHUNK2_RIGHT_RULE,
 
             // Riff Chunk
             Riff => &Self::RIFF_RIGHT_RULE,

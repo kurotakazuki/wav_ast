@@ -4,10 +4,10 @@ use mpl::symbols::Variable;
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub enum WavVariable {
     Wav,
-    ChunksAndData,
     Chunks,
 
     Chunk,
+    Chunk2,
 
     // RIFF Chunk
     Riff,
