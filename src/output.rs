@@ -2,11 +2,11 @@ use crate::chunk::{DataChunk, FmtChunk, FormatTag, OtherChunk, RiffChunk, WaveFo
 use crate::sample::Sample;
 use crate::variable::WavVariable;
 use crate::wav::Wav;
-use mpl::choice::Choice;
+use mpl::choices::Choice;
 use mpl::output::Output;
 use mpl::span::{Span, StartAndLenSpan};
 use mpl::symbols::TerminalSymbol;
-use mpl::tree::{ASTKind, AST, CST};
+use mpl::trees::{Node, AST, CST};
 use std::convert::TryInto;
 
 #[derive(Clone, Debug)]
@@ -67,8 +67,8 @@ impl<'a> WavOutput<'a> {
 impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for WavOutput<'input> {
     fn output_ast(
         input: &'input [u8],
-        cst: CST<Self, WavVariable, StartAndLenSpan<u32, u32>>,
-    ) -> AST<Self, WavVariable, StartAndLenSpan<u32, u32>> {
+        cst: CST<WavVariable, StartAndLenSpan<u32, u32>, Self>,
+    ) -> AST<WavVariable, StartAndLenSpan<u32, u32>, Self> {
         match cst.node.value {
             WavVariable::Wav => {
                 let span = cst.span;
@@ -83,12 +83,12 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
 
                 loop {
                     match chunks_v.lhs.node {
-                        ASTKind::LeafNode(n) => match n.into_original().unwrap() {
+                        Node::Leaf(n) => match n.into_original().unwrap() {
                             WavOutput::Fmt(c) => fmt = Some(c),
                             WavOutput::Other(c) => others.push(c),
                             _ => unreachable!(),
                         },
-                        ASTKind::InternalNode(n) => {
+                        Node::Internal(n) => {
                             // Data Chunk
                             let data_v = n.into_first().unwrap();
 
@@ -169,7 +169,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
 
                                 let wav = Wav::new(riff, fmt, others, data);
 
-                                return AST::from_leaf_node(
+                                return AST::from_leaf(
                                     TerminalSymbol::from_original(WavOutput::Wav(wav)),
                                     span,
                                 );
@@ -193,7 +193,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                     // Fmt Chunk
                     Choice::First(first) => first.lhs,
                     // Data or Other Chunk
-                    Choice::Second(second) => match *second.0.into_internal_node().unwrap().equal {
+                    Choice::Second(second) => match *second.0.into_internal().unwrap().equal {
                         // Data Chunk
                         Choice::First(first) => first.lhs,
                         // Other Chunk
@@ -221,7 +221,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                 };
 
                 let riff = RiffChunk::new(size);
-                AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::Riff(riff)), span)
+                AST::from_leaf(TerminalSymbol::from_original(WavOutput::Riff(riff)), span)
             }
 
             WavVariable::Fmt => {
@@ -233,7 +233,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                     .into_first()
                     .unwrap()
                     .rhs
-                    .into_internal_node()
+                    .into_internal()
                     .unwrap()
                     .equal
                 {
@@ -250,10 +250,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                         fmt.chunk_header.size = size;
                         fmt.format_tag = format_tag;
 
-                        AST::from_leaf_node(
-                            TerminalSymbol::from_original(WavOutput::Fmt(fmt)),
-                            span,
-                        )
+                        AST::from_leaf(TerminalSymbol::from_original(WavOutput::Fmt(fmt)), span)
                     }
                     // Fmt Extensible
                     Choice::Second(second) => {
@@ -309,10 +306,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                             sub_format,
                         ));
 
-                        AST::from_leaf_node(
-                            TerminalSymbol::from_original(WavOutput::Fmt(fmt)),
-                            span,
-                        )
+                        AST::from_leaf(TerminalSymbol::from_original(WavOutput::Fmt(fmt)), span)
                     }
                 }
             }
@@ -360,7 +354,7 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
                     cb_size,
                     wave_format_extensible,
                 );
-                AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::Fmt(fmt)), span)
+                AST::from_leaf(TerminalSymbol::from_original(WavOutput::Fmt(fmt)), span)
             }
 
             WavVariable::Other => {
@@ -374,26 +368,26 @@ impl<'input> Output<'input, [u8], WavVariable, StartAndLenSpan<u32, u32>> for Wa
 
                 let other = OtherChunk::new(four_cc, size, &input[lo + 8..hi]);
 
-                AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::Other(other)), span)
+                AST::from_leaf(TerminalSymbol::from_original(WavOutput::Other(other)), span)
             }
 
             WavVariable::U16 => {
                 let lo = cst.span.start as usize;
                 let hi = cst.span.hi(input) as usize;
                 let n = u16::from_le_bytes(input[lo..hi].try_into().unwrap());
-                AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::U16(n)), cst.span)
+                AST::from_leaf(TerminalSymbol::from_original(WavOutput::U16(n)), cst.span)
             }
             WavVariable::U32 => {
                 let lo = cst.span.start as usize;
                 let hi = cst.span.hi(input) as usize;
                 let n = u32::from_le_bytes(input[lo..hi].try_into().unwrap());
-                AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::U32(n)), cst.span)
+                AST::from_leaf(TerminalSymbol::from_original(WavOutput::U32(n)), cst.span)
             }
             WavVariable::U128 => {
                 let lo = cst.span.start as usize;
                 let hi = cst.span.hi(input) as usize;
                 let n = u128::from_le_bytes(input[lo..hi].try_into().unwrap());
-                AST::from_leaf_node(TerminalSymbol::from_original(WavOutput::U128(n)), cst.span)
+                AST::from_leaf(TerminalSymbol::from_original(WavOutput::U128(n)), cst.span)
             }
             _ => AST::from_cst(cst),
         }

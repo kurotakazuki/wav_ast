@@ -1,5 +1,5 @@
 use crate::variable::{WavVariable, WavVariable::*};
-use mpl::choice::{First, Second};
+use mpl::choices::{First, Second};
 use mpl::rules::{RightRule, Rules};
 use mpl::symbols::{Metasymbol::*, TerminalSymbol, U8SliceTerminal, U8SliceTerminal::*, E};
 

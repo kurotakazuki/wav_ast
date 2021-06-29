@@ -3,7 +3,7 @@ use crate::rules::WavRules;
 use crate::variable::WavVariable;
 use mpl::parse::Parse;
 use mpl::span::StartAndLenSpan;
-use mpl::tree::AST;
+use mpl::trees::AST;
 
 mod chunk;
 mod output;
@@ -68,8 +68,8 @@ fn main() {
     let all_of_the_span = StartAndLenSpan::<u32, u32>::from_start_len(0, input.len() as u32);
 
     let result: Result<
-        AST<WavOutput, WavVariable, StartAndLenSpan<u32, u32>>,
-        AST<WavOutput, WavVariable, StartAndLenSpan<u32, u32>>,
+        AST<WavVariable, StartAndLenSpan<u32, u32>, WavOutput>,
+        AST<WavVariable, StartAndLenSpan<u32, u32>, WavOutput>,
     > = input.minimal_parse(&wav_rules, &WavVariable::Wav, &all_of_the_span);
 
     let wav = result.unwrap().into_original().unwrap().into_wav();
